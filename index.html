@@ -1,0 +1,2598 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditorium Seating Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Sarabun", sans-serif;
+            --bg-canvas: #f5f5f7;
+            --bg-elevated: #ffffff;
+            --bg-subtle: #f2f2f7;
+            --bg-glass: rgba(255, 255, 255, 0.78);
+            --bg-input: #f2f2f7;
+            --bg-input-focus: #ffffff;
+            --border-hairline: rgba(0, 0, 0, 0.08);
+            --border-strong: rgba(0, 0, 0, 0.14);
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --text-tertiary: #86868b;
+            --accent-blue: #0071e3;
+            --accent-blue-hover: #0077ed;
+            --accent-blue-soft: rgba(0, 113, 227, 0.1);
+            --accent-green: #28cd41;
+            --accent-green-text: #1c8c30;
+            --accent-orange: #ff9500;
+            --accent-red: #ff3b30;
+            --accent-purple: #af52de;
+            --seat-empty: #e8e8ed;
+            --seat-empty-border: rgba(0, 0, 0, 0.06);
+            --seat-empty-text: #515154;
+            --booth-bg: #d2d2d7;
+            --booth-text: #6e6e73;
+            --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.18), 0 0 1px rgba(0, 0, 0, 0.12);
+            --shadow-tooltip: 0 12px 32px rgba(0, 0, 0, 0.16);
+            --seat-size: 26px;
+            --radius-xl: 20px;
+            --radius-lg: 14px;
+            --radius-md: 10px;
+            --radius-sm: 7px;
+        }
+
+        [data-theme="dark"] {
+            --bg-canvas: #000000;
+            --bg-elevated: #1c1c1e;
+            --bg-subtle: #2c2c2e;
+            --bg-glass: rgba(28, 28, 30, 0.78);
+            --bg-input: #2c2c2e;
+            --bg-input-focus: #3a3a3c;
+            --border-hairline: rgba(255, 255, 255, 0.1);
+            --border-strong: rgba(255, 255, 255, 0.18);
+            --text-primary: #f5f5f7;
+            --text-secondary: #98989d;
+            --text-tertiary: #636366;
+            --accent-blue: #0a84ff;
+            --accent-blue-hover: #409cff;
+            --accent-blue-soft: rgba(10, 132, 255, 0.18);
+            --accent-green: #30d158;
+            --accent-green-text: #30d158;
+            --accent-orange: #ff9f0a;
+            --accent-red: #ff453a;
+            --accent-purple: #bf5af2;
+            --seat-empty: #2c2c2e;
+            --seat-empty-border: rgba(255, 255, 255, 0.07);
+            --seat-empty-text: #aeaeb2;
+            --booth-bg: #3a3a3c;
+            --booth-text: #8e8e93;
+            --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.35);
+            --shadow-modal: 0 28px 70px rgba(0, 0, 0, 0.65);
+            --shadow-tooltip: 0 14px 36px rgba(0, 0, 0, 0.6);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-sans);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+
+        /* Sticky Apple Frosted Top Navigation */
+        .top-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border-hairline);
+            padding: 12px 24px;
+        }
+
+        .top-nav-inner {
+            max-width: 1520px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .brand-cluster {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .app-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            background: linear-gradient(145deg, #0071e3, #42a1ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            box-shadow: 0 3px 10px rgba(0, 113, 227, 0.28);
+            flex-shrink: 0;
+        }
+
+        .brand-text h1 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+
+        .brand-subtitle {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* Cloud / Supabase Status Pill */
+        .cloud-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-hairline);
+            color: var(--text-primary);
+            font-size: 0.76rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+
+        .cloud-pill:hover {
+            border-color: var(--border-strong);
+            transform: translateY(-0.5px);
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-tertiary);
+        }
+
+        .status-dot.connected {
+            background: var(--accent-green);
+            box-shadow: 0 0 0 3px rgba(40, 205, 65, 0.2);
+        }
+
+        .status-dot.syncing {
+            background: var(--accent-orange);
+            animation: pulseDot 1s infinite;
+        }
+
+        @keyframes pulseDot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+
+        /* Event Manager Segmented Bar */
+        .event-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-subtle);
+            padding: 4px;
+            border-radius: 11px;
+            border: 1px solid var(--border-hairline);
+            flex-wrap: wrap;
+        }
+
+        .event-bar select {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-hairline);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 170px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        .toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        /* Apple Buttons & Inputs */
+        button, .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 7px 13px;
+            border-radius: 9px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.16s cubic-bezier(0.25, 1, 0.5, 1);
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        button:disabled {
+            opacity: 0.38;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0, 113, 227, 0.25);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-blue-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            border-color: var(--border-hairline);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--bg-subtle);
+            border-color: var(--border-strong);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-primary);
+        }
+
+        .btn-ghost:hover:not(:disabled) {
+            background: rgba(120, 120, 128, 0.12);
+        }
+
+        .btn-active {
+            background: var(--accent-blue-soft) !important;
+            color: var(--accent-blue) !important;
+            border-color: rgba(0, 113, 227, 0.28) !important;
+            font-weight: 600;
+        }
+
+        .btn-danger {
+            color: var(--accent-red);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: rgba(255, 59, 48, 0.1);
+        }
+
+        .btn-success {
+            background: rgba(40, 205, 65, 0.14);
+            color: var(--accent-green-text);
+            font-weight: 600;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: rgba(40, 205, 65, 0.22);
+        }
+
+        input[type="text"], input[type="number"], input[type="password"], select {
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid transparent;
+            border-radius: 9px;
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            outline: none;
+            transition: all 0.18s ease;
+        }
+
+        input:focus, select:focus {
+            background: var(--bg-input-focus);
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3.5px var(--accent-blue-soft);
+        }
+
+        /* Main Workspace Container */
+        .workspace {
+            max-width: 1520px;
+            margin: 0 auto;
+            padding: 20px 24px 36px;
+        }
+
+        /* Apple Metric Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        @media (max-width: 860px) {
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .metric-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-lg);
+            padding: 16px 20px;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.76rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .metric-value {
+            font-size: 1.85rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            font-variant-numeric: tabular-nums;
+            margin-top: 6px;
+            line-height: 1.1;
+        }
+
+        .metric-sub {
+            font-size: 0.72rem;
+            color: var(--text-tertiary);
+            margin-top: 6px;
+        }
+
+        .apple-progress {
+            width: 100%;
+            height: 5px;
+            background: var(--bg-subtle);
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .apple-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-blue);
+            border-radius: 999px;
+            transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* Control Panels */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 2.35fr 1fr;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        @media (max-width: 1040px) {
+            .controls-grid { grid-template-columns: 1fr; }
+        }
+
+        .card-panel {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-lg);
+            padding: 16px 20px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .pill-control {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 11px;
+            background: var(--bg-subtle);
+            border-radius: 9px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .pill-control input[type="checkbox"] {
+            accent-color: var(--accent-blue);
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
+        .pill-control input[type="range"] {
+            width: 74px;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+            padding: 0;
+        }
+
+        /* Class Legend Chips */
+        .legend-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-hairline);
+            max-height: 92px;
+            overflow-y: auto;
+        }
+
+        .legend-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: var(--bg-subtle);
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .legend-chip:hover {
+            background: var(--accent-blue-soft);
+            color: var(--text-primary);
+        }
+
+        .legend-swatch {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* Auditorium Canvas */
+        .hall-outer-container {
+            display: flex;
+            gap: 14px;
+            align-items: stretch;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .hall-outer-container.balconies-hidden .balcony-wing {
+            display: none !important;
+        }
+
+        .balcony-wing {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-xl);
+            padding: 14px 8px;
+            width: 98px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--shadow-card);
+            flex-shrink: 0;
+        }
+
+        .balcony-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: center;
+        }
+
+        .balcony-seats-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            width: 100%;
+            align-items: center;
+        }
+
+        .seating-wrapper {
+            flex: 1;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-hairline);
+            border-radius: var(--radius-xl);
+            padding: 24px 20px;
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: auto;
+        }
+
+        /* Apple Keynote Architectural Stage */
+        .stage {
+            width: 100%;
+            max-width: 860px;
+            background: linear-gradient(180deg, var(--accent-blue-soft) 0%, transparent 100%);
+            border: 1px solid rgba(0, 113, 227, 0.22);
+            border-radius: 12px 12px 28px 28px;
+            padding: 10px 20px;
+            margin-bottom: 24px;
+            text-align: center;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+        }
+
+        .seating-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            width: 100%;
+            max-width: 1280px;
+            align-items: center;
+        }
+
+        .row-container {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .row-label {
+            width: 24px;
+            height: var(--seat-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.72rem;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-tertiary);
+            border-radius: 6px;
+        }
+
+        /* Main Aisle & Walkway Rows */
+        .aisle-gap {
+            min-height: 46px;
+            width: 100%;
+            max-width: 1280px;
+            margin: 8px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-subtle);
+            border-radius: 12px;
+            border: 1px dashed var(--border-strong);
+            padding: 6px 0;
+            gap: 5px;
+            position: relative;
+        }
+
+        .aisle-title-label {
+            font-size: 0.68rem;
+            color: var(--text-tertiary);
+            font-weight: 600;
+            letter-spacing: 0.16em;
+            user-select: none;
+        }
+
+        .aisle-control-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.25;
+            transition: opacity 0.2s ease;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-hairline);
+            box-shadow: var(--shadow-card);
+            flex-wrap: wrap;
+        }
+
+        .aisle-gap:hover .aisle-control-bar {
+            opacity: 1;
+        }
+
+        .aisle-btn-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            padding: 1px 6px;
+        }
+
+        .aisle-btn-group-title {
+            font-size: 0.68rem;
+            color: var(--accent-blue);
+            font-weight: 600;
+            margin-right: 2px;
+        }
+
+        .walkway-row { display: none; }
+        .walkway-row.active { display: flex; }
+
+        .block-section { display: flex; gap: 3.5px; }
+        .block-side { display: flex; gap: 3.5px; }
+        .block-center { display: flex; gap: 3.5px; margin: 0 10px; }
+
+        /* Extra Seats Deck */
+        .extra-section {
+            width: 100%;
+            max-width: 1140px;
+            margin-top: 20px;
+            padding: 14px 18px;
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-hairline);
+            border-radius: 14px;
+        }
+
+        .extra-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .extra-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .extra-seats-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            align-items: center;
+            min-height: 30px;
+        }
+
+        /* Tactile Apple Seat Tiles */
+        .seat {
+            width: var(--seat-size);
+            height: var(--seat-size);
+            border-radius: var(--radius-sm);
+            background-color: var(--seat-empty);
+            border: 1px solid var(--seat-empty-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.58rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            color: var(--seat-empty-text);
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.16s ease, background-color 0.15s ease;
+            position: relative;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .seat.occupied {
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.12);
+        }
+
+        .seat.extra-seat { border: 1.5px dashed var(--accent-green-text); }
+        .seat.balcony-seat { border: 1.5px dashed var(--accent-orange); }
+        .seat.walkway-seat { border: 1.5px dashed var(--accent-blue); }
+
+        .seat.has-photo::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid var(--accent-blue);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .seat:hover:not(.booth) {
+            transform: scale(1.28);
+            z-index: 30;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .seat.booth {
+            background-color: var(--booth-bg);
+            color: var(--booth-text);
+            cursor: not-allowed;
+            font-size: 0.46rem;
+            letter-spacing: 0.02em;
+            border: none;
+        }
+
+        .seat-placeholder {
+            width: var(--seat-size);
+            height: var(--seat-size);
+            opacity: 0;
+            pointer-events: none;
+            flex-shrink: 0;
+        }
+
+        .seat-code { font-size: 0.56rem; font-weight: 600; }
+        .seat-class-tag {
+            font-size: 0.44rem;
+            font-weight: 700;
+            opacity: 0.95;
+            margin-top: 1px;
+            display: none;
+            text-transform: uppercase;
+            overflow: hidden;
+            max-width: 23px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .show-class-labels .seat-class-tag { display: block; }
+        .show-class-labels .seat-code { font-size: 0.47rem; opacity: 0.85; }
+
+        @keyframes pulse-highlight {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 113, 227, 0.75); }
+            70% { transform: scale(1.32); box-shadow: 0 0 0 10px rgba(0, 113, 227, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 113, 227, 0); }
+        }
+
+        .seat.highlight {
+            animation: pulse-highlight 1.3s infinite;
+            z-index: 35;
+            outline: 2px solid var(--accent-blue);
+        }
+
+        /* Frosted Popover Tooltip */
+        .seat-tooltip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-glass);
+            backdrop-filter: blur(18px) saturate(180%);
+            -webkit-backdrop-filter: blur(18px) saturate(180%);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 0.74rem;
+            white-space: nowrap;
+            display: none;
+            pointer-events: none;
+            border: 1px solid var(--border-hairline);
+            box-shadow: var(--shadow-tooltip);
+            z-index: 50;
+            text-align: center;
+        }
+
+        .seat:hover .seat-tooltip {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .tooltip-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--accent-blue);
+            margin-bottom: 2px;
+        }
+
+        /* Apple Sheet Modals */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.36);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .modal-box {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-hairline);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 460px;
+            padding: 24px;
+            box-shadow: var(--shadow-modal);
+            animation: sheetEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes sheetEnter {
+            from { opacity: 0; transform: scale(0.96) translateY(8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1.05rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .modal-field {
+            margin-bottom: 14px;
+            text-align: left;
+        }
+
+        .modal-field label {
+            display: block;
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .modal-field input, .modal-field select, .modal-field textarea {
+            width: 100%;
+        }
+
+        .modal-photo-preview-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .modal-photo-preview {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: 1px solid var(--border-strong);
+            background: var(--bg-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.68rem;
+            color: var(--text-tertiary);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .sql-box {
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-hairline);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            max-height: 130px;
+            overflow-y: auto;
+            white-space: pre;
+            line-height: 1.45;
+        }
+
+        /* Apple Floating Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .toast-pill {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--border-hairline);
+            box-shadow: var(--shadow-tooltip);
+            color: var(--text-primary);
+            padding: 10px 18px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            animation: toastUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes toastUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        footer {
+            margin-top: 28px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-hairline);
+            text-align: center;
+            color: var(--text-tertiary);
+            font-size: 0.76rem;
+        }
+
+        footer .brand {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        @media print {
+            body { background: #ffffff !important; color: #000000 !important; }
+            .top-nav, .controls-grid, .metrics-grid, footer, .modal-overlay, .aisle-control-bar, .toast-container { display: none !important; }
+            .workspace { padding: 0; max-width: 100%; }
+            .seating-wrapper, .balcony-wing { border: none; box-shadow: none; background: #ffffff; padding: 0; }
+            .seat { -webkit-print-color-adjust: exact; print-color-adjust: exact; border: 1px solid #d1d5db; }
+            .seat.booth { background: #9ca3af !important; color: #ffffff !important; }
+            .seat-class-tag { display: block !important; font-size: 0.44rem !important; }
+            .seat-code { font-size: 0.45rem !important; }
+            .extra-section, .balcony-wing { border: 1px dashed #d1d5db !important; background: #ffffff !important; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="top-nav">
+    <div class="top-nav-inner">
+        <div class="brand-cluster">
+            <div class="app-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="14" rx="3"></rect>
+                    <path d="M7 21h10"></path>
+                    <path d="M12 18v3"></path>
+                </svg>
+            </div>
+            <div class="brand-text">
+                <h1 id="txt-app-title">Auditorium Seating Planner</h1>
+                <div class="brand-subtitle" id="txt-app-sub">Spatial Event &amp; Ceremony Studio</div>
+            </div>
+            <button type="button" class="cloud-pill" onclick="openSupabaseModal()" id="btn-cloud-status" title="Configure Supabase Database">
+                <span class="status-dot" id="cloud-dot"></span>
+                <span id="cloud-status-text">Local Mode</span>
+            </button>
+        </div>
+
+        <div class="event-bar">
+            <select id="saved-events-select" onchange="loadSelectedEvent()" aria-label="Select Event"></select>
+            <button type="button" class="btn-primary" onclick="openSaveEventModal()" id="btn-save-event">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                <span id="lbl-btn-save">บันทึกงาน</span>
+            </button>
+            <button type="button" class="btn-ghost" onclick="exportEventJSON()" id="btn-export-drive">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span id="lbl-btn-export">ส่งออก JSON</span>
+            </button>
+            <button type="button" class="btn-ghost" onclick="triggerImportJSON()" id="btn-import-drive">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span id="lbl-btn-import">นำเข้า</span>
+            </button>
+            <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importEventJSON(event)">
+            <button type="button" class="btn-ghost btn-danger" onclick="deleteCurrentEvent()" id="btn-delete-event" title="Delete Event">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+            </button>
+        </div>
+
+        <div class="toolbar-actions">
+            <button type="button" class="btn-secondary" onclick="toggleBalconies()" id="btn-toggle-balcony">ซ่อน/แสดงระเบียง</button>
+            <button type="button" class="btn-secondary" id="toggle-label-btn" onclick="toggleClassLabelsOverview()">แสดงชื่อห้องบนผัง</button>
+            <button type="button" class="btn-secondary" id="undo-btn" onclick="undoLastAction()" disabled>Undo</button>
+            <button type="button" class="btn-secondary" onclick="window.print()" id="btn-print-layout">พิมพ์ผัง</button>
+            <button type="button" class="btn-secondary" onclick="toggleLanguage()" id="btn-lang-toggle">TH / EN</button>
+            <button type="button" class="btn-secondary" onclick="toggleTheme()" id="btn-theme-toggle" title="Toggle Appearance">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+            </button>
+            <button type="button" class="btn-secondary btn-danger" onclick="resetAllSeats()" id="btn-reset-all">ล้างทั้งหมด</button>
+        </div>
+    </div>
+</nav>
+
+<main class="workspace">
+    <!-- Metrics Summary -->
+    <section class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-header"><span id="lbl-total-seats">ความจุที่นั่งทั้งหมด</span></div>
+            <div class="metric-value" id="total-seats">0</div>
+            <div class="metric-sub" id="lbl-total-sub">รวมเก้าอี้เสริม / ระเบียง / ทางเดิน</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-header"><span id="lbl-allocated-seats">จัดสรรที่นั่งแล้ว</span></div>
+            <div class="metric-value" id="allocated-seats" style="color: var(--accent-green-text);">0</div>
+            <div class="apple-progress"><div class="apple-progress-bar" id="progress-fill"></div></div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-header"><span id="lbl-remaining-seats">ที่นั่งคงเหลือ</span></div>
+            <div class="metric-value" id="remaining-seats" style="color: var(--text-secondary);">0</div>
+            <div class="metric-sub" id="lbl-remaining-sub">พร้อมจัดสรร</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-header"><span id="lbl-occupancy-rate">อัตราการครองที่นั่ง</span></div>
+            <div class="metric-value" id="occupancy-rate">0%</div>
+            <div class="metric-sub" id="lbl-occupancy-sub">ความหนาแน่นในหอประชุม</div>
+        </div>
+    </section>
+
+    <!-- Controls Grid -->
+    <section class="controls-grid">
+        <div class="card-panel">
+            <div class="card-title">
+                <span id="lbl-auto-title">จัดที่นั่งตามห้องเรียนและเลือกทิศทาง</span>
+            </div>
+            <div class="form-row">
+                <select id="class-select" style="min-width: 190px;"></select>
+                <input type="number" id="group-count" placeholder="จำนวนคน" style="width: 92px;" min="1">
+                <select id="allocation-mode" style="min-width: 215px;">
+                    <optgroup label="จัดแนวนอนทีละแถว" id="opt-horiz-group">
+                        <option value="HORIZ_1_TO_29" id="opt-h1">แนวนอนเริ่มจากขวาไปซ้าย (เลข 1 → 29)</option>
+                        <option value="HORIZ_29_TO_1" id="opt-h2">แนวนอนเริ่มจากซ้ายไปขวา (เลข 29 → 1)</option>
+                    </optgroup>
+                    <optgroup label="จัดแนวตั้งเกาะกลุ่มโซน" id="opt-vert-group">
+                        <option value="ZONE_RIGHT_VER" id="opt-v1">แนวตั้งโซนขวาก่อน (เลข 1-7)</option>
+                        <option value="ZONE_CENTER_VER" id="opt-v2">แนวตั้งโซนกลางก่อน (เลข 8-22)</option>
+                        <option value="ZONE_LEFT_VER" id="opt-v3">แนวตั้งโซนซ้ายก่อน (เลข 23-29)</option>
+                    </optgroup>
+                </select>
+
+                <label class="pill-control" title="เว้นเก้าอี้ว่าง 1 ที่นั่งก่อนเริ่มรันกลุ่มใหม่">
+                    <input type="checkbox" id="buffer-zone-check">
+                    <span id="lbl-buffer-zone">เว้น 1 ที่ (Buffer)</span>
+                </label>
+
+                <div class="pill-control" title="ปรับขยายย่อขนาดเก้าอี้">
+                    <span id="lbl-seat-size-slider">ขนาดเก้าอี้</span>
+                    <input type="range" id="seat-size-slider" min="18" max="34" value="26" oninput="changeSeatSize(this.value)">
+                </div>
+
+                <button type="button" class="btn-primary" onclick="allocateGroup()" id="btn-run-auto">รันที่นั่งอัตโนมัติ</button>
+            </div>
+
+            <div class="legend-strip" id="legend-container"></div>
+        </div>
+
+        <div class="card-panel">
+            <div class="card-title" id="lbl-search-title">ค้นหาตำแหน่งที่นั่ง (Seat Finder)</div>
+            <div class="form-row" style="flex-direction: column; align-items: stretch;">
+                <input type="text" id="search-input" placeholder="พิมพ์ชื่อห้อง หรือชื่อบุคคล..." oninput="searchSeats()">
+                <button type="button" class="btn-secondary" style="margin-top: 4px;" onclick="clearSearch()" id="btn-clear-search">ล้างการค้นหา</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Auditorium Spatial Layout -->
+    <section class="hall-outer-container" id="hall-outer-container">
+        <aside class="balcony-wing">
+            <div class="balcony-title" id="lbl-balcony-left">ระเบียงซ้าย</div>
+            <button type="button" class="btn-secondary" style="font-size:0.72rem; padding:5px 8px; width:100%;" onclick="addBalconySeat('L')" id="btn-add-balcony-l">+ เติมเก้าอี้</button>
+            <div class="balcony-seats-container" id="balcony-left-seats"></div>
+        </aside>
+
+        <div class="seating-wrapper" id="seating-wrapper">
+            <div class="stage" id="txt-stage">STAGE &middot; เวทีพิธีการ</div>
+            <div class="seating-grid" id="seating-grid"></div>
+
+            <div class="extra-section" id="extra-section">
+                <div class="extra-header-bar">
+                    <div class="extra-title" id="lbl-extra-title">เก้าอี้เสริมท้าย Hall (Bottom Extra Seats)</div>
+                    <button type="button" class="btn-success" style="font-size:0.75rem; padding:5px 11px;" onclick="addExtraSeat()" id="btn-add-extra-bottom">+ เติมเก้าอี้เสริมท้าย Hall</button>
+                </div>
+                <div class="extra-seats-grid" id="extra-seats-grid"></div>
+            </div>
+        </div>
+
+        <aside class="balcony-wing">
+            <div class="balcony-title" id="lbl-balcony-right">ระเบียงขวา</div>
+            <button type="button" class="btn-secondary" style="font-size:0.72rem; padding:5px 8px; width:100%;" onclick="addBalconySeat('R')" id="btn-add-balcony-r">+ เติมเก้าอี้</button>
+            <div class="balcony-seats-container" id="balcony-right-seats"></div>
+        </aside>
+    </section>
+
+    <footer>
+        Designed &amp; Engineered for Spatial Event Operations &middot; Developed by <span class="brand">Panthira Thamsanit</span>
+    </footer>
+</main>
+
+<!-- Seat Details Sheet Modal -->
+<div class="modal-overlay" id="seat-modal" onclick="if(event.target===this) closeModal()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span id="modal-seat-title">แก้ไขที่นั่ง</span>
+        </div>
+
+        <div class="modal-field">
+            <label id="lbl-modal-group">สังกัดกลุ่ม / ห้องเรียน</label>
+            <select id="modal-class-select"></select>
+        </div>
+
+        <div class="modal-field">
+            <label id="lbl-modal-person">ชื่อตัวบุคคล / VIP (แสดงเมื่อชี้เมาส์)</label>
+            <input type="text" id="modal-person-name" placeholder="เช่น นายสมชาย (ประธานพิธี)">
+        </div>
+
+        <div class="modal-field">
+            <label id="lbl-modal-photo">รูปถ่ายประจำตัว / VIP</label>
+            <input type="file" id="modal-photo-input" accept="image/*" onchange="previewModalPhoto(event)">
+            <div class="modal-photo-preview-box">
+                <div class="modal-photo-preview" id="modal-photo-preview-el">ไม่มีรูป</div>
+                <button type="button" class="btn-secondary" style="font-size: 0.74rem; padding: 6px 10px;" onclick="clearModalPhoto()" id="btn-clear-photo">ลบรูปภาพ</button>
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="btn-secondary" onclick="closeModal()" id="btn-modal-close">ปิด</button>
+            <button type="button" class="btn-secondary btn-danger" id="btn-modal-delete-seat" onclick="deleteDynamicSeatCompletely()">ลบเก้าอี้นี้ออก</button>
+            <button type="button" class="btn-secondary" onclick="clearModalSeatBooking()" id="btn-modal-clear">ล้างการจอง</button>
+            <button type="button" class="btn-primary" onclick="saveModalSeat()" id="btn-modal-save">บันทึก</button>
+        </div>
+    </div>
+</div>
+
+<!-- Save Event Name Sheet Modal -->
+<div class="modal-overlay" id="save-event-modal" onclick="if(event.target===this) closeSaveEventModal()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span id="lbl-save-modal-title">บันทึกแผนผังงาน (Save Event)</span>
+        </div>
+        <div class="modal-field">
+            <label id="lbl-save-modal-name">ชื่องาน / กิจกรรม</label>
+            <input type="text" id="save-event-name-input" placeholder="เช่น งานพิธีไหว้ครู ประจำปีการศึกษา 2569">
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-secondary" onclick="closeSaveEventModal()">ยกเลิก</button>
+            <button type="button" class="btn-primary" onclick="confirmSaveEvent()">บันทึก</button>
+        </div>
+    </div>
+</div>
+
+<!-- Supabase Cloud Database Modal -->
+<div class="modal-overlay" id="supabase-modal" onclick="if(event.target===this) closeSupabaseModal()">
+    <div class="modal-box" style="max-width: 520px;">
+        <div class="modal-header">
+            <span>Supabase Cloud Database &amp; Realtime Sync</span>
+        </div>
+        <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
+            เชื่อมต่อฐานข้อมูล PostgreSQL บน Supabase เพื่อซิงค์ผังที่นั่งแบบเรียลไทม์ข้ามอุปกรณ์ หากยังไม่กรอก ระบบจะบันทึกอัตโนมัติในเครื่อง (Local Storage)
+        </p>
+
+        <div class="modal-field">
+            <label>Supabase Project URL</label>
+            <input type="text" id="sb-url-input" placeholder="https://xxxxxxxxxxxx.supabase.co">
+        </div>
+
+        <div class="modal-field">
+            <label>Supabase Anon Public Key</label>
+            <input type="password" id="sb-key-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+        </div>
+
+        <div class="modal-field">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                <label style="margin:0;">PostgreSQL Table Schema (รันใน Supabase SQL Editor)</label>
+                <button type="button" class="btn-ghost" style="font-size:0.72rem; padding:3px 8px; color:var(--accent-blue);" onclick="copySupabaseSQL()">คัดลอก SQL</button>
+            </div>
+            <div class="sql-box" id="sb-sql-snippet">create table if not exists public.auditorium_events (
+  id text primary key,
+  event_name text not null unique,
+  seat_data jsonb not null default '{}'::jsonb,
+  extra_seat_list jsonb not null default '[]'::jsonb,
+  balcony_seat_list jsonb not null default '{"L": [], "R": []}'::jsonb,
+  walkway_seat_list jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.auditorium_events enable row level security;
+create policy "Allow all" on public.auditorium_events for all using (true) with check (true);
+alter publication supabase_realtime add table public.auditorium_events;</div>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="btn-secondary btn-danger" onclick="disconnectSupabase()">ตัดการเชื่อมต่อ</button>
+            <button type="button" class="btn-secondary" onclick="closeSupabaseModal()">ปิด</button>
+            <button type="button" class="btn-primary" onclick="connectSupabaseFromModal()">เชื่อมต่อ &amp; ซิงค์ข้อมูล</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+    // Optional: Pre-fill your Supabase project credentials here for zero-setup team deployment
+    const DEFAULT_SUPABASE_URL = '';
+    const DEFAULT_SUPABASE_ANON_KEY = '';
+
+    const i18n = {
+        th: {
+            appTitle: "Auditorium Seating Planner",
+            appSub: "Spatial Event & Ceremony Studio",
+            saveEvent: "บันทึกงาน",
+            exportDrive: "ส่งออก JSON",
+            importDrive: "นำเข้า",
+            undo: "Undo",
+            showLabels: "แสดงชื่อห้องบนผัง",
+            hideLabels: "ซ่อนชื่อห้องบนผัง",
+            printLayout: "พิมพ์ผัง",
+            resetAll: "ล้างทั้งหมด",
+            toggleBalcony: "ซ่อน/แสดงระเบียง",
+            totalSeats: "ความจุที่นั่งทั้งหมด",
+            totalSub: "รวมเก้าอี้เสริม / ระเบียง / ทางเดิน",
+            allocatedSeats: "จัดสรรที่นั่งแล้ว",
+            remainingSeats: "ที่นั่งคงเหลือ",
+            remainingSub: "พร้อมจัดสรร",
+            occupancyRate: "อัตราการครองที่นั่ง",
+            occupancySub: "ความหนาแน่นในหอประชุม",
+            autoTitle: "จัดที่นั่งตามห้องเรียนและเลือกทิศทาง",
+            addExtra: "+ เติมเก้าอี้เสริมท้าย Hall",
+            countPlaceholder: "จำนวนคน",
+            bufferZone: "เว้น 1 ที่ (Buffer)",
+            seatSizeSlider: "ขนาดเก้าอี้",
+            runAuto: "รันที่นั่งอัตโนมัติ",
+            searchTitle: "ค้นหาตำแหน่งที่นั่ง (Seat Finder)",
+            searchPlaceholder: "พิมพ์ชื่อห้อง หรือชื่อบุคคล...",
+            clearSearch: "ล้างการค้นหา",
+            balconyL: "ระเบียงซ้าย",
+            balconyR: "ระเบียงขวา",
+            addBalconyL: "+ เติมเก้าอี้",
+            addBalconyR: "+ เติมเก้าอี้",
+            stage: "STAGE · เวทีพิธีการ",
+            extraTitle: "เก้าอี้เสริมท้าย Hall (Bottom Extra Seats)",
+            modalGroup: "สังกัดกลุ่ม / ห้องเรียน",
+            modalPerson: "ชื่อตัวบุคคล / VIP (แสดงเมื่อชี้เมาส์)",
+            modalPhoto: "รูปถ่ายประจำตัว / VIP",
+            clearPhoto: "ลบรูปภาพ",
+            modalSave: "บันทึก",
+            modalClear: "ล้างการจอง",
+            modalDeleteSeat: "ลบเก้าอี้นี้ออก",
+            modalClose: "ปิด",
+            optHGroup: "จัดแนวนอนทีละแถว",
+            optH1: "แนวนอนเริ่มจากขวาไปซ้าย (เลข 1 → 29)",
+            optH2: "แนวนอนเริ่มจากซ้ายไปขวา (เลข 29 → 1)",
+            optVGroup: "จัดแนวตั้งเกาะกลุ่มโซน",
+            optV1: "แนวตั้งโซนขวาก่อน (เลข 1-7)",
+            optV2: "แนวตั้งโซนกลางก่อน (เลข 8-22)",
+            optV3: "แนวตั้งโซนซ้ายก่อน (เลข 23-29)"
+        },
+        en: {
+            appTitle: "Auditorium Seating Planner",
+            appSub: "Spatial Event & Ceremony Studio",
+            saveEvent: "Save Event",
+            exportDrive: "Export JSON",
+            importDrive: "Import",
+            undo: "Undo",
+            showLabels: "Show Class Labels",
+            hideLabels: "Hide Class Labels",
+            printLayout: "Print Layout",
+            resetAll: "Reset All",
+            toggleBalcony: "Toggle Balcony",
+            totalSeats: "Total Capacity",
+            totalSub: "Inc. Extra / Balcony / Aisle",
+            allocatedSeats: "Allocated Seats",
+            remainingSeats: "Remaining Seats",
+            remainingSub: "Available to assign",
+            occupancyRate: "Occupancy Rate",
+            occupancySub: "Auditorium utilization",
+            autoTitle: "Auto Allocation & Direction",
+            addExtra: "+ Add Bottom Extra Seat",
+            countPlaceholder: "Count",
+            bufferZone: "1-Seat Buffer",
+            seatSizeSlider: "Seat Size",
+            runAuto: "Auto Allocate",
+            searchTitle: "Seat Finder",
+            searchPlaceholder: "Search class or VIP name...",
+            clearSearch: "Clear Search",
+            balconyL: "Balcony L",
+            balconyR: "Balcony R",
+            addBalconyL: "+ Add Seat",
+            addBalconyR: "+ Add Seat",
+            stage: "STAGE · CEREMONY",
+            extraTitle: "Bottom Extra Seats",
+            modalGroup: "Group / Class Belonging",
+            modalPerson: "Person Name / VIP (Show on hover)",
+            modalPhoto: "VIP Avatar Photo",
+            clearPhoto: "Remove Photo",
+            modalSave: "Save",
+            modalClear: "Clear Booking",
+            modalDeleteSeat: "Delete Seat",
+            modalClose: "Close",
+            optHGroup: "Horizontal Row by Row",
+            optH1: "Horizontal Right to Left (1 → 29)",
+            optH2: "Horizontal Left to Right (29 → 1)",
+            optVGroup: "Vertical Zone by Zone",
+            optV1: "Vertical Right Zone First (1-7)",
+            optV2: "Vertical Center Zone First (8-22)",
+            optV3: "Vertical Left Zone First (23-29)"
+        }
+    };
+
+    let currentLang = 'th';
+    let isBalconyHidden = false;
+
+    const CLASS_LIST = [
+        { id: '7A', name: '7 Archimedes (7A)', color: '#0071e3' },
+        { id: '7E', name: '7 Einstein (7E)', color: '#ff2d55' },
+        { id: '7F', name: '7 Franklin (7F)', color: '#2563eb' },
+        { id: '7Lang', name: '7 Lang', color: '#f59e0b' },
+        { id: '7N', name: '7 Newton (7N)', color: '#af52de' },
+        { id: '7P', name: '7 Pasteur (7P)', color: '#65a30d' },
+        { id: '7T', name: '7 Tesla (7T)', color: '#db2777' },
+        { id: '8A', name: '8 Austen (8A)', color: '#ff9500' },
+        { id: '8B', name: '8 Byron (8B)', color: '#00a3bf' },
+        { id: '8H', name: '8 Hemingway (8H)', color: '#15803d' },
+        { id: '8Lang', name: '8 Lang', color: '#e11d48' },
+        { id: '8M', name: '8 Mendelssohn (8M)', color: '#28cd41' },
+        { id: '8S', name: '8 Shakespeare (8S)', color: '#eab308' },
+        { id: '8W', name: '8 Wordsworth (8W)', color: '#5856d6' },
+        { id: '9B', name: '9 Beethoven (9B)', color: '#f43f5e' },
+        { id: '9G', name: '9 Gershwin (9G)', color: '#0284c7' },
+        { id: '9H', name: '9 Haydn (9H)', color: '#7c3aed' },
+        { id: '9M', name: '9 Mozart (9M)', color: '#fb7185' },
+        { id: '9S', name: '9 Schubert (9S)', color: '#10b981' },
+        { id: '9T', name: '9 Turing (9T)', color: '#c026d3' },
+        { id: '10L', name: '10 Leonardo (10L)', color: '#d97706' },
+        { id: '10M', name: '10 Monet (10M)', color: '#16a34a' },
+        { id: '10P', name: '10 Picasso (10P)', color: '#ea580c' },
+        { id: '10R', name: '10 Rutherford (10R)', color: '#0e7490' },
+        { id: '10V', name: '10 Van Gogh (10V)', color: '#9333ea' },
+        { id: '11A', name: '11 Aristotle (11A)', color: '#0369a1' },
+        { id: '11P', name: '11 Plato (11P)', color: '#1d4ed8' },
+        { id: '11R', name: '11 Ramanujan (11R)', color: '#f97316' },
+        { id: '11S', name: '11 Socrates (11S)', color: '#dc2626' },
+        { id: '11V', name: '11 Voltaire (11V)', color: '#059669' },
+        { id: '12G', name: '12 Gryphon (12G)', color: '#be185d' },
+        { id: '12M', name: '12 Merlion (12M)', color: '#7e22ce' },
+        { id: '12P', name: '12 Phoenix (12P)', color: '#b45309' },
+        { id: '12U', name: '12 Unicorn (12U)', color: '#4f46e5' },
+        { id: 'Council', name: 'Student council (สภานักเรียน)', color: '#ff3b30' },
+        { id: 'VIP', name: 'VIP', color: '#d4af37' },
+        { id: 'SMT', name: 'SMT', color: '#e11d48' },
+        { id: 'PST', name: 'PST', color: '#ec4899' },
+        { id: 'Teacher', name: 'Teacher', color: '#991b1b' }
+    ];
+
+    const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'];
+    const totalCols = 29;
+
+    let seatData = {};
+    let extraSeatList = [];
+    let balconySeatList = { L: [], R: [] };
+    let walkwaySeatList = [];
+    let historyStack = [];
+    let isClassLabelsVisible = false;
+
+    let activeEditingSeatId = null;
+    let tempPhotoBase64 = null;
+    let currentEventName = "งานพิธีไหว้ครู";
+
+    // Supabase Client State
+    const SB_CONFIG_KEY = 'AUDITORIUM_SUPABASE_CONFIG';
+    const STORAGE_KEY = 'AUDITORIUM_MULTI_EVENTS_DATA';
+    let supabaseClient = null;
+    let realtimeChannel = null;
+    let syncDebounceTimer = null;
+
+    function showToast(message) {
+        const container = document.getElementById('toast-container');
+        const pill = document.createElement('div');
+        pill.className = 'toast-pill';
+        pill.innerText = message;
+        container.appendChild(pill);
+        setTimeout(() => {
+            pill.style.opacity = '0';
+            pill.style.transform = 'translateY(6px)';
+            pill.style.transition = 'all 0.2s ease';
+            setTimeout(() => pill.remove(), 220);
+        }, 2600);
+    }
+
+    function getContrastText(hexColor) {
+        if (!hexColor || !hexColor.startsWith('#')) return '#ffffff';
+        const hex = hexColor.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        return yiq >= 165 ? '#1d1d1f' : '#ffffff';
+    }
+
+    function toggleTheme() {
+        const html = document.documentElement;
+        const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('AUDITORIUM_THEME', next);
+    }
+
+    /* ---------------- SUPABASE CLOUD SYNC ENGINE ---------------- */
+    function setCloudStatus(state, label) {
+        const dot = document.getElementById('cloud-dot');
+        const txt = document.getElementById('cloud-status-text');
+        dot.className = 'status-dot';
+        if (state === 'connected') dot.classList.add('connected');
+        if (state === 'syncing') dot.classList.add('syncing');
+        txt.innerText = label;
+    }
+
+    function getSupabaseConfig() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(SB_CONFIG_KEY));
+            if (saved && saved.url && saved.key) return saved;
+        } catch (e) {}
+        if (DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY) {
+            return { url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_ANON_KEY };
+        }
+        return null;
+    }
+
+    async function initSupabaseClient() {
+        const cfg = getSupabaseConfig();
+        if (!cfg || !window.supabase) {
+            setCloudStatus('local', 'Local Mode');
+            return false;
+        }
+        try {
+            setCloudStatus('syncing', 'Connecting…');
+            supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
+            const { data, error } = await supabaseClient
+                .from('auditorium_events')
+                .select('*')
+                .order('updated_at', { ascending: false });
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                const merged = getSavedEventsObj();
+                data.forEach(row => {
+                    merged[row.event_name] = {
+                        seatData: row.seat_data || {},
+                        extraSeatList: row.extra_seat_list || [],
+                        balconySeatList: row.balcony_seat_list || { L: [], R: [] },
+                        walkwaySeatList: row.walkway_seat_list || []
+                    };
+                });
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+                if (!merged[currentEventName]) {
+                    currentEventName = data[0].event_name;
+                }
+                updateEventsDropdown();
+                loadSelectedEvent(true);
+            } else {
+                await pushCurrentEventToSupabase();
+            }
+
+            subscribeToRealtimeEvents();
+            setCloudStatus('connected', 'Supabase Live');
+            return true;
+        } catch (err) {
+            console.warn('Supabase sync fallback:', err.message);
+            supabaseClient = null;
+            setCloudStatus('local', 'Local Mode (Offline)');
+            return false;
+        }
+    }
+
+    function subscribeToRealtimeEvents() {
+        if (!supabaseClient) return;
+        if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+
+        realtimeChannel = supabaseClient
+            .channel('public:auditorium_events')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'auditorium_events' }, payload => {
+                if (payload.new && payload.new.event_name) {
+                    const row = payload.new;
+                    const eventsObj = getSavedEventsObj();
+                    eventsObj[row.event_name] = {
+                        seatData: row.seat_data || {},
+                        extraSeatList: row.extra_seat_list || [],
+                        balconySeatList: row.balcony_seat_list || { L: [], R: [] },
+                        walkwaySeatList: row.walkway_seat_list || []
+                    };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsObj));
+                    updateEventsDropdown();
+                    if (row.event_name === currentEventName) {
+                        seatData = eventsObj[row.event_name].seatData;
+                        extraSeatList = eventsObj[row.event_name].extraSeatList;
+                        balconySeatList = eventsObj[row.event_name].balconySeatList;
+                        walkwaySeatList = eventsObj[row.event_name].walkwaySeatList;
+                        renderAllDynamicContainers();
+                        renderAllSeats();
+                        updateTotalSeatsCount();
+                        updateDashboard();
+                    }
+                }
+            })
+            .subscribe();
+    }
+
+    function persistCurrentEvent(skipCloud = false) {
+        const eventsObj = getSavedEventsObj();
+        eventsObj[currentEventName] = {
+            seatData: JSON.parse(JSON.stringify(seatData)),
+            extraSeatList: [...extraSeatList],
+            balconySeatList: JSON.parse(JSON.stringify(balconySeatList)),
+            walkwaySeatList: [...walkwaySeatList]
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsObj));
+
+        if (!skipCloud && supabaseClient) {
+            clearTimeout(syncDebounceTimer);
+            setCloudStatus('syncing', 'Syncing…');
+            syncDebounceTimer = setTimeout(() => {
+                pushCurrentEventToSupabase();
+            }, 650);
+        }
+    }
+
+    async function pushCurrentEventToSupabase() {
+        if (!supabaseClient) return;
+        try {
+            const payload = {
+                id: currentEventName.toLowerCase().replace(/\s+/g, '_'),
+                event_name: currentEventName,
+                seat_data: seatData,
+                extra_seat_list: extraSeatList,
+                balcony_seat_list: balconySeatList,
+                walkway_seat_list: walkwaySeatList
+            };
+            const { error } = await supabaseClient
+                .from('auditorium_events')
+                .upsert(payload, { onConflict: 'event_name' });
+            if (error) throw error;
+            setCloudStatus('connected', 'Supabase Synced');
+        } catch (err) {
+            console.error('Supabase upsert failed:', err);
+            setCloudStatus('local', 'Sync Error');
+        }
+    }
+
+    function openSupabaseModal() {
+        const cfg = getSupabaseConfig();
+        document.getElementById('sb-url-input').value = cfg ? cfg.url : '';
+        document.getElementById('sb-key-input').value = cfg ? cfg.key : '';
+        document.getElementById('supabase-modal').style.display = 'flex';
+    }
+
+    function closeSupabaseModal() {
+        document.getElementById('supabase-modal').style.display = 'none';
+    }
+
+    async function connectSupabaseFromModal() {
+        const url = document.getElementById('sb-url-input').value.trim();
+        const key = document.getElementById('sb-key-input').value.trim();
+        if (!url || !key) {
+            showToast(currentLang === 'th' ? 'กรุณากรอก Supabase URL และ Anon Key' : 'Please enter Supabase URL and Anon Key');
+            return;
+        }
+        localStorage.setItem(SB_CONFIG_KEY, JSON.stringify({ url, key }));
+        closeSupabaseModal();
+        const ok = await initSupabaseClient();
+        showToast(ok
+            ? (currentLang === 'th' ? 'เชื่อมต่อ Supabase และซิงค์ข้อมูลสำเร็จ' : 'Connected to Supabase & synced')
+            : (currentLang === 'th' ? 'ไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบ URL/Key หรือตาราง SQL' : 'Connection failed. Verify credentials & SQL table.')
+        );
+    }
+
+    function disconnectSupabase() {
+        localStorage.removeItem(SB_CONFIG_KEY);
+        if (realtimeChannel && supabaseClient) {
+            supabaseClient.removeChannel(realtimeChannel);
+        }
+        supabaseClient = null;
+        setCloudStatus('local', 'Local Mode');
+        closeSupabaseModal();
+        showToast(currentLang === 'th' ? 'ตัดการเชื่อมต่อ Supabase แล้ว' : 'Disconnected from Supabase');
+    }
+
+    function copySupabaseSQL() {
+        const sql = document.getElementById('sb-sql-snippet').innerText;
+        navigator.clipboard.writeText(sql).then(() => {
+            showToast(currentLang === 'th' ? 'คัดลอก SQL Schema เรียบร้อยแล้ว' : 'SQL Schema copied to clipboard');
+        });
+    }
+
+    /* ---------------- HISTORY & STATE ---------------- */
+    function saveState() {
+        const snapshot = {
+            seatData: JSON.parse(JSON.stringify(seatData)),
+            extraSeatList: [...extraSeatList],
+            balconySeatList: JSON.parse(JSON.stringify(balconySeatList)),
+            walkwaySeatList: [...walkwaySeatList]
+        };
+        historyStack.push(snapshot);
+        if (historyStack.length > 25) historyStack.shift();
+        updateUndoButton();
+    }
+
+    function undoLastAction() {
+        if (historyStack.length === 0) return;
+        const previousState = historyStack.pop();
+        seatData = previousState.seatData;
+        extraSeatList = previousState.extraSeatList;
+        balconySeatList = previousState.balconySeatList;
+        walkwaySeatList = previousState.walkwaySeatList;
+
+        renderAllDynamicContainers();
+        renderAllSeats();
+        updateTotalSeatsCount();
+        updateDashboard();
+        updateUndoButton();
+        persistCurrentEvent();
+        showToast(currentLang === 'th' ? 'ย้อนกลับรายการล่าสุดแล้ว' : 'Undid last action');
+    }
+
+    function updateUndoButton() {
+        document.getElementById('undo-btn').disabled = historyStack.length === 0;
+    }
+
+    function isControlBooth(row, num) {
+        return ['I', 'J', 'K', 'L'].includes(row) && (num >= 12 && num <= 18);
+    }
+
+    function toggleBalconies() {
+        isBalconyHidden = !isBalconyHidden;
+        const container = document.getElementById('hall-outer-container');
+        const btn = document.getElementById('btn-toggle-balcony');
+        container.classList.toggle('balconies-hidden', isBalconyHidden);
+        btn.classList.toggle('btn-active', isBalconyHidden);
+    }
+
+    function changeSeatSize(val) {
+        document.documentElement.style.setProperty('--seat-size', `${val}px`);
+    }
+
+    function populateClassSelect() {
+        const select = document.getElementById('class-select');
+        const modalSelect = document.getElementById('modal-class-select');
+        const legendContainer = document.getElementById('legend-container');
+        select.innerHTML = '';
+        modalSelect.innerHTML = '';
+        legendContainer.innerHTML = '';
+
+        CLASS_LIST.forEach(cls => {
+            const opt = document.createElement('option');
+            opt.value = cls.id;
+            opt.innerText = cls.name;
+            select.appendChild(opt);
+
+            const optModal = document.createElement('option');
+            optModal.value = cls.id;
+            optModal.innerText = cls.name;
+            modalSelect.appendChild(optModal);
+
+            const legendItem = document.createElement('div');
+            legendItem.className = 'legend-chip';
+            legendItem.innerHTML = `<span class="legend-swatch" style="background:${cls.color}"></span><span>${cls.id}</span>`;
+            legendItem.onclick = () => {
+                select.value = cls.id;
+                document.getElementById('search-input').value = cls.id;
+                searchSeats();
+            };
+            legendContainer.appendChild(legendItem);
+        });
+    }
+
+    async function initGrid() {
+        const savedTheme = localStorage.getItem('AUDITORIUM_THEME');
+        if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+
+        populateClassSelect();
+        const gridContainer = document.getElementById('seating-grid');
+        gridContainer.innerHTML = '';
+
+        rows.forEach(row => {
+            if (row === 'I') {
+                const aisle = document.createElement('div');
+                aisle.className = 'aisle-gap';
+                aisle.id = 'main-aisle-gap';
+
+                aisle.innerHTML = `
+                    <div class="aisle-title-label">MAIN AISLE</div>
+                    <div class="aisle-control-bar">
+                        <div class="aisle-btn-group">
+                            <span class="aisle-btn-group-title">W1:</span>
+                            <button type="button" class="btn-ghost" style="font-size:0.68rem; padding:3px 7px;" onclick="addWalkwaySeat('L1')">+ซ้าย</button>
+                            <button type="button" class="btn-ghost" style="font-size:0.68rem; padding:3px 7px; color:var(--accent-blue);" onclick="addWalkwaySeat('C1')">+กลาง</button>
+                            <button type="button" class="btn-ghost" style="font-size:0.68rem; padding:3px 7px;" onclick="addWalkwaySeat('R1')">+ขวา</button>
+                        </div>
+                        <div class="aisle-btn-group">
+                            <span class="aisle-btn-group-title" style="color:var(--accent-purple);">W2:</span>
+                            <button type="button" class="btn-ghost" style="font-size:0.68rem; padding:3px 7px;" onclick="addWalkwaySeat('L2')">+ซ้าย</button>
+                            <button type="button" class="btn-ghost" style="font-size:0.68rem; padding:3px 7px; color:var(--accent-purple);" onclick="addWalkwaySeat('C2')">+กลาง</button>
+                            <button type="button" class="btn-ghost" style="font-size:0.68rem; padding:3px 7px;" onclick="addWalkwaySeat('R2')">+ขวา</button>
+                        </div>
+                        <button type="button" class="btn-success" style="font-size:0.68rem; padding:3px 9px;" onclick="addWalkwayDoubleCenter()">+ แถวคู่กลาง</button>
+                    </div>
+
+                    <div class="row-container walkway-row" id="w1-row-container">
+                        <div class="row-label" style="color:var(--accent-blue); font-size:0.65rem;">W1</div>
+                        <div class="block-section block-side" id="w1-sec-left"></div>
+                        <div class="block-section block-center" id="w1-sec-center"></div>
+                        <div class="block-section block-side" id="w1-sec-right"></div>
+                        <div class="row-label" style="color:var(--accent-blue); font-size:0.65rem;">W1</div>
+                    </div>
+
+                    <div class="row-container walkway-row" id="w2-row-container">
+                        <div class="row-label" style="color:var(--accent-purple); font-size:0.65rem;">W2</div>
+                        <div class="block-section block-side" id="w2-sec-left"></div>
+                        <div class="block-section block-center" id="w2-sec-center"></div>
+                        <div class="block-section block-side" id="w2-sec-right"></div>
+                        <div class="row-label" style="color:var(--accent-purple); font-size:0.65rem;">W2</div>
+                    </div>
+                `;
+                gridContainer.appendChild(aisle);
+            }
+
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'row-container';
+
+            const leftLabel = document.createElement('div');
+            leftLabel.className = 'row-label';
+            leftLabel.innerText = row;
+            rowDiv.appendChild(leftLabel);
+
+            const leftBlock = document.createElement('div');
+            leftBlock.className = 'block-section block-side';
+            for (let i = 29; i >= 23; i--) createSeatElement(row, i, leftBlock);
+
+            const centerBlock = document.createElement('div');
+            centerBlock.className = 'block-section block-center';
+            for (let i = 22; i >= 8; i--) createSeatElement(row, i, centerBlock);
+
+            const rightBlock = document.createElement('div');
+            rightBlock.className = 'block-section block-side';
+            for (let i = 7; i >= 1; i--) createSeatElement(row, i, rightBlock);
+
+            rowDiv.appendChild(leftBlock);
+            rowDiv.appendChild(centerBlock);
+            rowDiv.appendChild(rightBlock);
+
+            const rightLabel = document.createElement('div');
+            rightLabel.className = 'row-label';
+            rightLabel.innerText = row;
+            rowDiv.appendChild(rightLabel);
+
+            gridContainer.appendChild(rowDiv);
+        });
+
+        initMultiEventManager();
+        await initSupabaseClient();
+    }
+
+    function createSeatElement(row, num, parent) {
+        const seatId = `${row}${num}`;
+        const seat = document.createElement('div');
+        seat.className = 'seat';
+        seat.id = `seat-${seatId}`;
+        seat.innerHTML = `<span class="seat-code">${num}</span><span class="seat-class-tag" id="tag-${seatId}"></span>`;
+
+        if (isControlBooth(row, num)) {
+            seat.classList.add('booth');
+            seat.innerHTML = `<span class="seat-code">BOOTH</span>`;
+            const tooltip = document.createElement('div');
+            tooltip.className = 'seat-tooltip';
+            tooltip.innerHTML = `<strong>${seatId}</strong><span>Control Booth</span>`;
+            seat.appendChild(tooltip);
+        } else {
+            seat.draggable = true;
+            seat.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', seatId));
+            seat.addEventListener('dragover', (e) => e.preventDefault());
+            seat.addEventListener('drop', (e) => handleDrop(e, seatId));
+            seat.addEventListener('click', () => openSeatModal(seatId));
+
+            const tooltip = document.createElement('div');
+            tooltip.className = 'seat-tooltip';
+            tooltip.id = `tooltip-${seatId}`;
+            tooltip.innerHTML = `<strong>ที่นั่ง ${seatId}</strong><span>สถานะ: ว่าง</span>`;
+            seat.appendChild(tooltip);
+        }
+
+        parent.appendChild(seat);
+    }
+
+    function openSeatModal(seatId) {
+        activeEditingSeatId = seatId;
+        const modal = document.getElementById('seat-modal');
+        const title = document.getElementById('modal-seat-title');
+        const classSelect = document.getElementById('modal-class-select');
+        const personInput = document.getElementById('modal-person-name');
+        const photoInput = document.getElementById('modal-photo-input');
+        const deleteBtn = document.getElementById('btn-modal-delete-seat');
+
+        title.innerText = `ที่นั่ง ${seatId}`;
+        photoInput.value = '';
+
+        const isDynamicSeat = seatId.startsWith('EX') || seatId.includes('BAL') || seatId.startsWith('W1') || seatId.startsWith('W2');
+        deleteBtn.style.display = isDynamicSeat ? 'inline-flex' : 'none';
+
+        const data = seatData[seatId];
+        if (data) {
+            classSelect.value = data.classId || '7A';
+            personInput.value = data.personName || '';
+            tempPhotoBase64 = data.photoUrl || null;
+        } else {
+            classSelect.value = document.getElementById('class-select').value || '7A';
+            personInput.value = '';
+            tempPhotoBase64 = null;
+        }
+
+        updateModalPhotoPreview();
+        modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('seat-modal').style.display = 'none';
+        activeEditingSeatId = null;
+        tempPhotoBase64 = null;
+    }
+
+    function previewModalPhoto(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const img = new Image();
+            img.onload = function () {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const maxDim = 150;
+                let w = img.width, h = img.height;
+                if (w > h) { if (w > maxDim) { h *= maxDim / w; w = maxDim; } }
+                else { if (h > maxDim) { w *= maxDim / h; h = maxDim; } }
+                canvas.width = w; canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                tempPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                updateModalPhotoPreview();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function clearModalPhoto() {
+        tempPhotoBase64 = null;
+        document.getElementById('modal-photo-input').value = '';
+        updateModalPhotoPreview();
+    }
+
+    function updateModalPhotoPreview() {
+        const previewEl = document.getElementById('modal-photo-preview-el');
+        if (tempPhotoBase64) {
+            previewEl.innerHTML = `<img src="${tempPhotoBase64}" style="width:100%; height:100%; object-fit:cover;">`;
+        } else {
+            previewEl.innerHTML = currentLang === 'th' ? 'ไม่มีรูป' : 'None';
+        }
+    }
+
+    function saveModalSeat() {
+        if (!activeEditingSeatId) return;
+        saveState();
+
+        const classId = document.getElementById('modal-class-select').value;
+        const personName = document.getElementById('modal-person-name').value.trim();
+        const classObj = CLASS_LIST.find(c => c.id === classId) || { id: classId, name: classId, color: '#0071e3' };
+
+        seatData[activeEditingSeatId] = {
+            classId: classObj.id,
+            className: classObj.name,
+            color: classObj.color,
+            personName: personName,
+            photoUrl: tempPhotoBase64
+        };
+
+        renderSeat(activeEditingSeatId);
+        updateDashboard();
+        persistCurrentEvent();
+        closeModal();
+    }
+
+    function clearModalSeatBooking() {
+        if (!activeEditingSeatId) return;
+        saveState();
+        delete seatData[activeEditingSeatId];
+        renderSeat(activeEditingSeatId);
+        updateDashboard();
+        persistCurrentEvent();
+        closeModal();
+    }
+
+    function deleteDynamicSeatCompletely() {
+        if (!activeEditingSeatId) return;
+        const seatId = activeEditingSeatId;
+
+        if (confirm(`ยืนยันการลบเก้าอี้ "${seatId}" ออกจากผัง?`)) {
+            saveState();
+            delete seatData[seatId];
+
+            extraSeatList = extraSeatList.filter(id => id !== seatId);
+            balconySeatList.L = balconySeatList.L.filter(id => id !== seatId);
+            balconySeatList.R = balconySeatList.R.filter(id => id !== seatId);
+            walkwaySeatList = walkwaySeatList.filter(id => id !== seatId);
+
+            renderAllDynamicContainers();
+            renderAllSeats();
+            updateTotalSeatsCount();
+            updateDashboard();
+            persistCurrentEvent();
+            closeModal();
+        }
+    }
+
+    function addBalconySeat(side) {
+        saveState();
+        const nextNum = balconySeatList[side].length + 1;
+        const seatId = side === 'L' ? `LBAL${nextNum}` : `RBAL${nextNum}`;
+        balconySeatList[side].push(seatId);
+
+        renderAllDynamicContainers();
+        updateTotalSeatsCount();
+        updateDashboard();
+        persistCurrentEvent();
+    }
+
+    function addWalkwaySeat(target) {
+        saveState();
+        const centerCols = [22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8];
+        const leftCols = [29, 28, 27, 26, 25, 24, 23];
+        const rightCols = [7, 6, 5, 4, 3, 2, 1];
+
+        let targetRow = 'W1';
+        let colsList = centerCols;
+
+        if (target === 'L1') { targetRow = 'W1'; colsList = leftCols; }
+        else if (target === 'L2') { targetRow = 'W2'; colsList = leftCols; }
+        else if (target === 'C1') { targetRow = 'W1'; colsList = centerCols; }
+        else if (target === 'C2') { targetRow = 'W2'; colsList = centerCols; }
+        else if (target === 'R1') { targetRow = 'W1'; colsList = rightCols; }
+        else if (target === 'R2') { targetRow = 'W2'; colsList = rightCols; }
+
+        for (let col of colsList) {
+            const candidateId = `${targetRow}-${col}`;
+            if (!walkwaySeatList.includes(candidateId)) {
+                walkwaySeatList.push(candidateId);
+                break;
+            }
+        }
+
+        renderAllDynamicContainers();
+        updateTotalSeatsCount();
+        updateDashboard();
+        persistCurrentEvent();
+    }
+
+    function addWalkwayDoubleCenter() {
+        saveState();
+        const centerCols = [22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8];
+        for (let col of centerCols) {
+            const candidateId = `W1-${col}`;
+            if (!walkwaySeatList.includes(candidateId)) { walkwaySeatList.push(candidateId); break; }
+        }
+        for (let col of centerCols) {
+            const candidateId = `W2-${col}`;
+            if (!walkwaySeatList.includes(candidateId)) { walkwaySeatList.push(candidateId); break; }
+        }
+
+        renderAllDynamicContainers();
+        updateTotalSeatsCount();
+        updateDashboard();
+        persistCurrentEvent();
+    }
+
+    function addExtraSeat() {
+        saveState();
+        const nextNum = extraSeatList.length + 1;
+        const seatId = `EX${nextNum}`;
+        extraSeatList.push(seatId);
+
+        renderAllDynamicContainers();
+        updateTotalSeatsCount();
+        updateDashboard();
+        persistCurrentEvent();
+    }
+
+    function renderAllDynamicContainers() {
+        const balLGrid = document.getElementById('balcony-left-seats');
+        balLGrid.innerHTML = '';
+        balconySeatList.L.forEach(id => createDynamicSeatElement(id, balLGrid, 'balcony-seat'));
+
+        const balRGrid = document.getElementById('balcony-right-seats');
+        balRGrid.innerHTML = '';
+        balconySeatList.R.forEach(id => createDynamicSeatElement(id, balRGrid, 'balcony-seat'));
+
+        const w1HasSeats = renderWalkwayRowGrid('W1', 'w1-sec-left', 'w1-sec-center', 'w1-sec-right');
+        const w2HasSeats = renderWalkwayRowGrid('W2', 'w2-sec-left', 'w2-sec-center', 'w2-sec-right');
+
+        document.getElementById('w1-row-container').classList.toggle('active', w1HasSeats);
+        document.getElementById('w2-row-container').classList.toggle('active', w2HasSeats);
+
+        const extraGrid = document.getElementById('extra-seats-grid');
+        extraGrid.innerHTML = '';
+        extraSeatList.forEach(id => createDynamicSeatElement(id, extraGrid, 'extra-seat'));
+    }
+
+    function renderWalkwayRowGrid(rowPrefix, leftId, centerId, rightId) {
+        const leftSec = document.getElementById(leftId);
+        const centerSec = document.getElementById(centerId);
+        const rightSec = document.getElementById(rightId);
+        if (!leftSec || !centerSec || !rightSec) return false;
+
+        leftSec.innerHTML = '';
+        centerSec.innerHTML = '';
+        rightSec.innerHTML = '';
+
+        let seatCount = 0;
+
+        for (let c = 29; c >= 23; c--) {
+            const seatId = `${rowPrefix}-${c}`;
+            if (walkwaySeatList.includes(seatId)) {
+                createDynamicSeatElement(seatId, leftSec, 'walkway-seat');
+                seatCount++;
+            } else {
+                const ph = document.createElement('div');
+                ph.className = 'seat-placeholder';
+                leftSec.appendChild(ph);
+            }
+        }
+
+        for (let c = 22; c >= 8; c--) {
+            const seatId = `${rowPrefix}-${c}`;
+            if (walkwaySeatList.includes(seatId)) {
+                createDynamicSeatElement(seatId, centerSec, 'walkway-seat');
+                seatCount++;
+            } else {
+                const ph = document.createElement('div');
+                ph.className = 'seat-placeholder';
+                centerSec.appendChild(ph);
+            }
+        }
+
+        for (let c = 7; c >= 1; c--) {
+            const seatId = `${rowPrefix}-${c}`;
+            if (walkwaySeatList.includes(seatId)) {
+                createDynamicSeatElement(seatId, rightSec, 'walkway-seat');
+                seatCount++;
+            } else {
+                const ph = document.createElement('div');
+                ph.className = 'seat-placeholder';
+                rightSec.appendChild(ph);
+            }
+        }
+
+        return seatCount > 0;
+    }
+
+    function createDynamicSeatElement(seatId, parentContainer, extraClass) {
+        const seat = document.createElement('div');
+        seat.className = `seat ${extraClass}`;
+        seat.id = `seat-${seatId}`;
+
+        const displayCode = seatId.includes('-') ? seatId.split('-')[1] : seatId;
+        seat.innerHTML = `<span class="seat-code">${displayCode}</span><span class="seat-class-tag" id="tag-${seatId}"></span>`;
+
+        seat.draggable = true;
+        seat.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', seatId));
+        seat.addEventListener('dragover', (e) => e.preventDefault());
+        seat.addEventListener('drop', (e) => handleDrop(e, seatId));
+        seat.addEventListener('click', () => openSeatModal(seatId));
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'seat-tooltip';
+        tooltip.id = `tooltip-${seatId}`;
+        tooltip.innerHTML = `<strong>${seatId}</strong><span>สถานะ: ว่าง</span>`;
+        seat.appendChild(tooltip);
+
+        parentContainer.appendChild(seat);
+        renderSeat(seatId);
+    }
+
+    /* ---------------- MULTI-EVENT MANAGER ---------------- */
+    function getSavedEventsObj() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+        } catch (e) { return {}; }
+    }
+
+    function initMultiEventManager() {
+        let eventsObj = getSavedEventsObj();
+        if (Object.keys(eventsObj).length === 0) {
+            eventsObj[currentEventName] = {
+                seatData: {},
+                extraSeatList: [],
+                balconySeatList: { L: [], R: [] },
+                walkwaySeatList: []
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsObj));
+        } else {
+            currentEventName = Object.keys(eventsObj)[0];
+        }
+        updateEventsDropdown();
+        loadSelectedEvent(true);
+    }
+
+    function updateEventsDropdown() {
+        const select = document.getElementById('saved-events-select');
+        select.innerHTML = '';
+        const eventsObj = getSavedEventsObj();
+
+        Object.keys(eventsObj).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.innerText = name;
+            if (name === currentEventName) opt.selected = true;
+            select.appendChild(opt);
+        });
+    }
+
+    function openSaveEventModal() {
+        document.getElementById('save-event-name-input').value = currentEventName;
+        document.getElementById('save-event-modal').style.display = 'flex';
+    }
+
+    function closeSaveEventModal() {
+        document.getElementById('save-event-modal').style.display = 'none';
+    }
+
+    function confirmSaveEvent() {
+        const name = document.getElementById('save-event-name-input').value.trim();
+        if (!name) return;
+        currentEventName = name;
+        persistCurrentEvent(false);
+        updateEventsDropdown();
+        closeSaveEventModal();
+        showToast(currentLang === 'th' ? `บันทึกแผนผังงาน "${name}" เรียบร้อยแล้ว` : `Saved "${name}"`);
+    }
+
+    function loadSelectedEvent(skipCloud = false) {
+        const select = document.getElementById('saved-events-select');
+        const name = select.value || currentEventName;
+        if (!name) return;
+
+        const eventsObj = getSavedEventsObj();
+        const evData = eventsObj[name];
+
+        if (evData) {
+            currentEventName = name;
+            seatData = evData.seatData || {};
+            extraSeatList = evData.extraSeatList || [];
+            balconySeatList = evData.balconySeatList || { L: [], R: [] };
+            walkwaySeatList = evData.walkwaySeatList || [];
+            historyStack = [];
+            updateUndoButton();
+
+            renderAllDynamicContainers();
+            renderAllSeats();
+            updateTotalSeatsCount();
+            updateDashboard();
+        }
+    }
+
+    function exportEventJSON() {
+        const evData = {
+            eventName: currentEventName,
+            seatData: seatData,
+            extraSeatList: extraSeatList,
+            balconySeatList: balconySeatList,
+            walkwaySeatList: walkwaySeatList,
+            exportDate: new Date().toISOString()
+        };
+
+        const jsonStr = JSON.stringify(evData, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SeatLayout_${currentEventName.replace(/\s+/g, '_')}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(currentLang === 'th' ? 'ส่งออกไฟล์ JSON เรียบร้อยแล้ว' : 'Exported JSON file');
+    }
+
+    function triggerImportJSON() {
+        document.getElementById('import-file-input').click();
+    }
+
+    function importEventJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data && data.seatData) {
+                    saveState();
+                    const importedName = data.eventName || "งานนำเข้า";
+                    currentEventName = importedName;
+
+                    seatData = data.seatData || {};
+                    extraSeatList = data.extraSeatList || [];
+                    balconySeatList = data.balconySeatList || { L: [], R: [] };
+                    walkwaySeatList = data.walkwaySeatList || [];
+
+                    persistCurrentEvent(false);
+                    updateEventsDropdown();
+                    renderAllDynamicContainers();
+                    renderAllSeats();
+                    updateTotalSeatsCount();
+                    updateDashboard();
+                    showToast(currentLang === 'th' ? `นำเข้าผัง "${importedName}" สำเร็จ` : `Imported "${importedName}"`);
+                }
+            } catch (err) {
+                showToast(currentLang === 'th' ? 'รูปแบบไฟล์ JSON ไม่ถูกต้อง' : 'Invalid JSON file');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    async function deleteCurrentEvent() {
+        let eventsObj = getSavedEventsObj();
+        const keys = Object.keys(eventsObj);
+        if (keys.length <= 1) {
+            showToast(currentLang === 'th' ? 'ต้องมีแผนผังงานอย่างน้อย 1 งาน' : 'At least 1 event must remain');
+            return;
+        }
+
+        if (confirm(`ยืนยันการลบผังงาน "${currentEventName}"?`)) {
+            const deletedName = currentEventName;
+            delete eventsObj[deletedName];
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsObj));
+
+            if (supabaseClient) {
+                await supabaseClient.from('auditorium_events').delete().eq('event_name', deletedName);
+            }
+
+            currentEventName = Object.keys(eventsObj)[0];
+            updateEventsDropdown();
+            loadSelectedEvent(true);
+            showToast(currentLang === 'th' ? `ลบผังงาน "${deletedName}" แล้ว` : `Deleted "${deletedName}"`);
+        }
+    }
+
+    /* ---------------- LANGUAGE & LABELS ---------------- */
+    function toggleLanguage() {
+        currentLang = currentLang === 'th' ? 'en' : 'th';
+        const t = i18n[currentLang];
+
+        document.getElementById('txt-app-title').innerText = t.appTitle;
+        document.getElementById('txt-app-sub').innerText = t.appSub;
+        document.getElementById('lbl-btn-save').innerText = t.saveEvent;
+        document.getElementById('lbl-btn-export').innerText = t.exportDrive;
+        document.getElementById('lbl-btn-import').innerText = t.importDrive;
+        document.getElementById('undo-btn').innerText = t.undo;
+
+        const labelBtn = document.getElementById('toggle-label-btn');
+        labelBtn.innerText = isClassLabelsVisible ? t.hideLabels : t.showLabels;
+
+        document.getElementById('btn-print-layout').innerText = t.printLayout;
+        document.getElementById('btn-reset-all').innerText = t.resetAll;
+        document.getElementById('btn-toggle-balcony').innerText = t.toggleBalcony;
+        document.getElementById('lbl-total-seats').innerText = t.totalSeats;
+        document.getElementById('lbl-total-sub').innerText = t.totalSub;
+        document.getElementById('lbl-allocated-seats').innerText = t.allocatedSeats;
+        document.getElementById('lbl-remaining-seats').innerText = t.remainingSeats;
+        document.getElementById('lbl-remaining-sub').innerText = t.remainingSub;
+        document.getElementById('lbl-occupancy-rate').innerText = t.occupancyRate;
+        document.getElementById('lbl-occupancy-sub').innerText = t.occupancySub;
+        document.getElementById('lbl-auto-title').innerText = t.autoTitle;
+        document.getElementById('btn-add-extra-bottom').innerText = t.addExtra;
+        document.getElementById('group-count').placeholder = t.countPlaceholder;
+        document.getElementById('lbl-buffer-zone').innerText = t.bufferZone;
+        document.getElementById('lbl-seat-size-slider').innerText = t.seatSizeSlider;
+        document.getElementById('btn-run-auto').innerText = t.runAuto;
+        document.getElementById('lbl-search-title').innerText = t.searchTitle;
+        document.getElementById('search-input').placeholder = t.searchPlaceholder;
+        document.getElementById('btn-clear-search').innerText = t.clearSearch;
+        document.getElementById('lbl-balcony-left').innerText = t.balconyL;
+        document.getElementById('lbl-balcony-right').innerText = t.balconyR;
+        document.getElementById('btn-add-balcony-l').innerText = t.addBalconyL;
+        document.getElementById('btn-add-balcony-r').innerText = t.addBalconyR;
+
+        document.getElementById('txt-stage').innerText = t.stage;
+        document.getElementById('lbl-extra-title').innerText = t.extraTitle;
+        document.getElementById('lbl-modal-group').innerText = t.modalGroup;
+        document.getElementById('lbl-modal-person').innerText = t.modalPerson;
+        document.getElementById('lbl-modal-photo').innerText = t.modalPhoto;
+        document.getElementById('btn-clear-photo').innerText = t.clearPhoto;
+        document.getElementById('btn-modal-save').innerText = t.modalSave;
+        document.getElementById('btn-modal-clear').innerText = t.modalClear;
+        document.getElementById('btn-modal-delete-seat').innerText = t.modalDeleteSeat;
+        document.getElementById('btn-modal-close').innerText = t.modalClose;
+
+        document.getElementById('opt-horiz-group').label = t.optHGroup;
+        document.getElementById('opt-h1').innerText = t.optH1;
+        document.getElementById('opt-h2').innerText = t.optH2;
+        document.getElementById('opt-vert-group').label = t.optVGroup;
+        document.getElementById('opt-v1').innerText = t.optV1;
+        document.getElementById('opt-v2').innerText = t.optV2;
+        document.getElementById('opt-v3').innerText = t.optV3;
+    }
+
+    function toggleClassLabelsOverview() {
+        isClassLabelsVisible = !isClassLabelsVisible;
+        const wrapper = document.getElementById('seating-wrapper');
+        const btn = document.getElementById('toggle-label-btn');
+        wrapper.classList.toggle('show-class-labels', isClassLabelsVisible);
+        btn.classList.toggle('btn-active', isClassLabelsVisible);
+        btn.innerText = isClassLabelsVisible ? i18n[currentLang].hideLabels : i18n[currentLang].showLabels;
+    }
+
+    /* ---------------- AUTO ALLOCATION ---------------- */
+    function allocateGroup() {
+        const classId = document.getElementById('class-select').value;
+        const count = parseInt(document.getElementById('group-count').value);
+        const mode = document.getElementById('allocation-mode').value;
+        const isBufferEnabled = document.getElementById('buffer-zone-check').checked;
+
+        const classObj = CLASS_LIST.find(c => c.id === classId);
+        if (!classObj || isNaN(count) || count <= 0) {
+            showToast(currentLang === 'th' ? 'กรุณาระบุจำนวนคนที่ถูกต้อง' : 'Please enter a valid seat count');
+            return;
+        }
+
+        saveState();
+        let seatSequence = [];
+
+        if (mode === 'HORIZ_1_TO_29') {
+            rows.forEach(r => {
+                for (let c = 1; c <= totalCols; c++) {
+                    const id = `${r}${c}`;
+                    if (!isControlBooth(r, c) && !seatData[id]) seatSequence.push(id);
+                }
+            });
+        } else if (mode === 'HORIZ_29_TO_1') {
+            rows.forEach(r => {
+                for (let c = totalCols; c >= 1; c--) {
+                    const id = `${r}${c}`;
+                    if (!isControlBooth(r, c) && !seatData[id]) seatSequence.push(id);
+                }
+            });
+        } else {
+            const getZoneCols = (zone) => {
+                if (zone === 'RIGHT') return [1, 2, 3, 4, 5, 6, 7];
+                if (zone === 'CENTER') return [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+                if (zone === 'LEFT') return [23, 24, 25, 26, 27, 28, 29];
+            };
+
+            let zoneOrder = [];
+            if (mode === 'ZONE_RIGHT_VER') zoneOrder = ['RIGHT', 'CENTER', 'LEFT'];
+            else if (mode === 'ZONE_CENTER_VER') zoneOrder = ['CENTER', 'RIGHT', 'LEFT'];
+            else zoneOrder = ['LEFT', 'CENTER', 'RIGHT'];
+
+            zoneOrder.forEach(z => {
+                const cols = getZoneCols(z);
+                rows.forEach(r => {
+                    cols.forEach(c => {
+                        const id = `${r}${c}`;
+                        if (!isControlBooth(r, c) && !seatData[id]) seatSequence.push(id);
+                    });
+                });
+            });
+        }
+
+        [...balconySeatList.L, ...balconySeatList.R, ...walkwaySeatList, ...extraSeatList].forEach(dynId => {
+            if (!seatData[dynId]) seatSequence.push(dynId);
+        });
+
+        if (isBufferEnabled && seatSequence.length > 0 && Object.keys(seatData).length > 0) {
+            seatSequence.shift();
+        }
+
+        if (seatSequence.length < count) {
+            showToast(currentLang === 'th'
+                ? `ที่นั่งว่างไม่พอ (เหลือ ${seatSequence.length} ที่)`
+                : `Not enough seats (Available: ${seatSequence.length})`);
+            historyStack.pop();
+            updateUndoButton();
+            return;
+        }
+
+        const assigned = seatSequence.slice(0, count);
+        assigned.forEach(seatId => {
+            seatData[seatId] = { classId: classObj.id, className: classObj.name, color: classObj.color };
+            renderSeat(seatId);
+        });
+
+        updateDashboard();
+        persistCurrentEvent();
+        document.getElementById('group-count').value = '';
+        showToast(currentLang === 'th' ? `จัดสรร ${classObj.id} จำนวน ${count} ที่นั่งเรียบร้อย` : `Assigned ${count} seats to ${classObj.id}`);
+    }
+
+    function renderSeat(seatId) {
+        const seatEl = document.getElementById(`seat-${seatId}`);
+        const tagEl = document.getElementById(`tag-${seatId}`);
+        const tooltipEl = document.getElementById(`tooltip-${seatId}`);
+        if (!seatEl) return;
+
+        if (seatData[seatId]) {
+            const data = seatData[seatId];
+            seatEl.style.backgroundColor = data.color;
+            seatEl.style.color = getContrastText(data.color);
+            seatEl.classList.add('occupied');
+            if (tagEl) tagEl.innerText = data.classId;
+
+            seatEl.classList.toggle('has-photo', Boolean(data.photoUrl));
+
+            if (tooltipEl) {
+                const imgHTML = data.photoUrl ? `<img src="${data.photoUrl}" class="tooltip-avatar">` : '';
+                const nameHTML = data.personName ? `<div style="color:var(--accent-blue); font-weight:600;">${data.personName}</div>` : '';
+                tooltipEl.innerHTML = `${imgHTML}<strong>${seatId}</strong>${nameHTML}<div style="color:var(--text-secondary);">${data.className}</div>`;
+            }
+        } else {
+            seatEl.style.backgroundColor = '';
+            seatEl.style.color = '';
+            seatEl.classList.remove('occupied', 'has-photo');
+            if (tagEl) tagEl.innerText = '';
+            if (tooltipEl) {
+                tooltipEl.innerHTML = `<strong>${seatId}</strong><span style="color:var(--text-secondary);">${currentLang === 'th' ? 'สถานะ: ว่าง' : 'Status: Empty'}</span>`;
+            }
+        }
+    }
+
+    function renderAllSeats() {
+        rows.forEach(r => {
+            for (let c = 1; c <= totalCols; c++) {
+                const id = `${r}${c}`;
+                if (!isControlBooth(r, c)) renderSeat(id);
+            }
+        });
+        [...extraSeatList, ...balconySeatList.L, ...balconySeatList.R, ...walkwaySeatList].forEach(dynId => renderSeat(dynId));
+    }
+
+    function handleDrop(e, targetSeatId) {
+        e.preventDefault();
+        const sourceSeatId = e.dataTransfer.getData('text/plain');
+        if (!sourceSeatId || sourceSeatId === targetSeatId) return;
+
+        saveState();
+        const temp = seatData[sourceSeatId];
+        if (seatData[targetSeatId]) seatData[sourceSeatId] = seatData[targetSeatId];
+        else delete seatData[sourceSeatId];
+
+        if (temp) seatData[targetSeatId] = temp;
+        else delete seatData[targetSeatId];
+
+        renderSeat(sourceSeatId);
+        renderSeat(targetSeatId);
+        updateDashboard();
+        persistCurrentEvent();
+    }
+
+    function searchSeats() {
+        const query = document.getElementById('search-input').value.trim().toLowerCase();
+
+        const allIds = [];
+        rows.forEach(r => {
+            for (let c = 1; c <= totalCols; c++) {
+                if (!isControlBooth(r, c)) allIds.push(`${r}${c}`);
+            }
+        });
+        allIds.push(...extraSeatList, ...balconySeatList.L, ...balconySeatList.R, ...walkwaySeatList);
+
+        allIds.forEach(id => {
+            const seatEl = document.getElementById(`seat-${id}`);
+            if (!seatEl) return;
+
+            if (query && seatData[id]) {
+                const matchClass = seatData[id].classId.toLowerCase().includes(query) || seatData[id].className.toLowerCase().includes(query);
+                const matchPerson = seatData[id].personName && seatData[id].personName.toLowerCase().includes(query);
+                seatEl.classList.toggle('highlight', Boolean(matchClass || matchPerson));
+            } else {
+                seatEl.classList.remove('highlight');
+            }
+        });
+    }
+
+    function clearSearch() {
+        document.getElementById('search-input').value = '';
+        searchSeats();
+    }
+
+    function updateTotalSeatsCount() {
+        let count = 0;
+        rows.forEach(r => {
+            for (let c = 1; c <= totalCols; c++) {
+                if (!isControlBooth(r, c)) count++;
+            }
+        });
+        count += extraSeatList.length + balconySeatList.L.length + balconySeatList.R.length + walkwaySeatList.length;
+        document.getElementById('total-seats').innerText = count;
+    }
+
+    function updateDashboard() {
+        const total = parseInt(document.getElementById('total-seats').innerText) || 436;
+        const allocated = Object.keys(seatData).length;
+        const remaining = total - allocated;
+        const rate = Math.round((allocated / total) * 100) || 0;
+
+        document.getElementById('allocated-seats').innerText = allocated;
+        document.getElementById('remaining-seats').innerText = remaining;
+        document.getElementById('occupancy-rate').innerText = `${rate}%`;
+        document.getElementById('progress-fill').style.width = `${rate}%`;
+    }
+
+    function resetAllSeats() {
+        if (confirm(currentLang === 'th' ? 'ยืนยันการล้างที่นั่งทั้งหมดในงานปัจจุบัน?' : 'Reset all seats in current event?')) {
+            saveState();
+            seatData = {};
+            extraSeatList = [];
+            balconySeatList = { L: [], R: [] };
+            walkwaySeatList = [];
+            renderAllDynamicContainers();
+            renderAllSeats();
+            updateTotalSeatsCount();
+            updateDashboard();
+            clearSearch();
+            persistCurrentEvent();
+            showToast(currentLang === 'th' ? 'ล้างที่นั่งทั้งหมดแล้ว' : 'All seats cleared');
+        }
+    }
+
+    window.onload = initGrid;
+</script>
+
+</body>
+</html>
