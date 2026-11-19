@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./supabase-config.js"></script>
     <style>
         :root {
             --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Sarabun", sans-serif;
@@ -91,7 +92,6 @@
             transition: background-color 0.25s ease, color 0.25s ease;
         }
 
-        /* Sticky Apple Frosted Top Navigation */
         .top-nav {
             position: sticky;
             top: 0;
@@ -146,7 +146,6 @@
             font-weight: 400;
         }
 
-        /* Cloud / Supabase Status Pill */
         .cloud-pill {
             display: inline-flex;
             align-items: center;
@@ -189,7 +188,6 @@
             50% { opacity: 0.35; }
         }
 
-        /* Event Manager Segmented Bar */
         .event-bar {
             display: flex;
             align-items: center;
@@ -220,7 +218,6 @@
             flex-wrap: wrap;
         }
 
-        /* Apple Buttons & Inputs */
         button, .btn {
             display: inline-flex;
             align-items: center;
@@ -321,14 +318,12 @@
             box-shadow: 0 0 0 3.5px var(--accent-blue-soft);
         }
 
-        /* Main Workspace Container */
         .workspace {
             max-width: 1520px;
             margin: 0 auto;
             padding: 20px 24px 36px;
         }
 
-        /* Apple Metric Cards */
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -392,7 +387,6 @@
             transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        /* Control Panels */
         .controls-grid {
             display: grid;
             grid-template-columns: 2.35fr 1fr;
@@ -459,7 +453,6 @@
             padding: 0;
         }
 
-        /* Class Legend Chips */
         .legend-strip {
             display: flex;
             flex-wrap: wrap;
@@ -497,7 +490,6 @@
             flex-shrink: 0;
         }
 
-        /* Auditorium Canvas */
         .hall-outer-container {
             display: flex;
             gap: 14px;
@@ -554,7 +546,6 @@
             overflow-x: auto;
         }
 
-        /* Apple Keynote Architectural Stage */
         .stage {
             width: 100%;
             max-width: 860px;
@@ -601,7 +592,6 @@
             border-radius: 6px;
         }
 
-        /* Main Aisle & Walkway Rows */
         .aisle-gap {
             min-height: 46px;
             width: 100%;
@@ -667,7 +657,6 @@
         .block-side { display: flex; gap: 3.5px; }
         .block-center { display: flex; gap: 3.5px; margin: 0 10px; }
 
-        /* Extra Seats Deck */
         .extra-section {
             width: 100%;
             max-width: 1140px;
@@ -705,7 +694,6 @@
             min-height: 30px;
         }
 
-        /* Tactile Apple Seat Tiles */
         .seat {
             width: var(--seat-size);
             height: var(--seat-size);
@@ -801,7 +789,6 @@
             outline: 2px solid var(--accent-blue);
         }
 
-        /* Frosted Popover Tooltip */
         .seat-tooltip {
             position: absolute;
             bottom: calc(100% + 8px);
@@ -839,7 +826,6 @@
             margin-bottom: 2px;
         }
 
-        /* Apple Sheet Modals */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -941,7 +927,6 @@
             line-height: 1.45;
         }
 
-        /* Apple Floating Toast */
         .toast-container {
             position: fixed;
             bottom: 24px;
@@ -1057,7 +1042,6 @@
 </nav>
 
 <main class="workspace">
-    <!-- Metrics Summary -->
     <section class="metrics-grid">
         <div class="metric-card">
             <div class="metric-header"><span id="lbl-total-seats">ความจุที่นั่งทั้งหมด</span></div>
@@ -1081,7 +1065,6 @@
         </div>
     </section>
 
-    <!-- Controls Grid -->
     <section class="controls-grid">
         <div class="card-panel">
             <div class="card-title">
@@ -1127,7 +1110,6 @@
         </div>
     </section>
 
-    <!-- Auditorium Spatial Layout -->
     <section class="hall-outer-container" id="hall-outer-container">
         <aside class="balcony-wing">
             <div class="balcony-title" id="lbl-balcony-left">ระเบียงซ้าย</div>
@@ -1247,8 +1229,13 @@
   updated_at timestamptz not null default now()
 );
 alter table public.auditorium_events enable row level security;
-create policy "Allow all" on public.auditorium_events for all using (true) with check (true);
-alter publication supabase_realtime add table public.auditorium_events;</div>
+drop policy if exists "Allow full access to auditorium_events" on public.auditorium_events;
+create policy "Allow full access to auditorium_events" on public.auditorium_events for all using (true) with check (true);
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'auditorium_events') then
+    alter publication supabase_realtime add table public.auditorium_events;
+  end if;
+end $$;</div>
         </div>
 
         <div class="modal-actions">
@@ -1262,10 +1249,6 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-    // Optional: Pre-fill your Supabase project credentials here for zero-setup team deployment
-    const DEFAULT_SUPABASE_URL = '';
-    const DEFAULT_SUPABASE_ANON_KEY = '';
-
     const i18n = {
         th: {
             appTitle: "Auditorium Seating Planner",
@@ -1428,7 +1411,6 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
     let tempPhotoBase64 = null;
     let currentEventName = "งานพิธีไหว้ครู";
 
-    // Supabase Client State
     const SB_CONFIG_KEY = 'AUDITORIUM_SUPABASE_CONFIG';
     const STORAGE_KEY = 'AUDITORIUM_MULTI_EVENTS_DATA';
     let supabaseClient = null;
@@ -1481,8 +1463,8 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
             const saved = JSON.parse(localStorage.getItem(SB_CONFIG_KEY));
             if (saved && saved.url && saved.key) return saved;
         } catch (e) {}
-        if (DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY) {
-            return { url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_ANON_KEY };
+        if (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url && window.SUPABASE_CONFIG.anonKey) {
+            return { url: window.SUPABASE_CONFIG.url.trim(), key: window.SUPABASE_CONFIG.anonKey.trim() };
         }
         return null;
     }
@@ -1518,7 +1500,7 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
                     currentEventName = data[0].event_name;
                 }
                 updateEventsDropdown();
-                loadSelectedEvent(true);
+                applyLocalEventToCanvas(currentEventName);
             } else {
                 await pushCurrentEventToSupabase();
             }
@@ -1541,6 +1523,21 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
         realtimeChannel = supabaseClient
             .channel('public:auditorium_events')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'auditorium_events' }, payload => {
+                if (payload.eventType === 'DELETE' && payload.old && payload.old.id) {
+                    const eventsObj = getSavedEventsObj();
+                    delete eventsObj[payload.old.id];
+                    if (Object.keys(eventsObj).length === 0) {
+                        eventsObj["งานพิธีไหว้ครู"] = { seatData: {}, extraSeatList: [], balconySeatList: { L: [], R: [] }, walkwaySeatList: [] };
+                    }
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsObj));
+                    if (!eventsObj[currentEventName]) {
+                        currentEventName = Object.keys(eventsObj)[0];
+                    }
+                    updateEventsDropdown();
+                    applyLocalEventToCanvas(currentEventName);
+                    return;
+                }
+
                 if (payload.new && payload.new.event_name) {
                     const row = payload.new;
                     const eventsObj = getSavedEventsObj();
@@ -1553,14 +1550,7 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsObj));
                     updateEventsDropdown();
                     if (row.event_name === currentEventName) {
-                        seatData = eventsObj[row.event_name].seatData;
-                        extraSeatList = eventsObj[row.event_name].extraSeatList;
-                        balconySeatList = eventsObj[row.event_name].balconySeatList;
-                        walkwaySeatList = eventsObj[row.event_name].walkwaySeatList;
-                        renderAllDynamicContainers();
-                        renderAllSeats();
-                        updateTotalSeatsCount();
-                        updateDashboard();
+                        applyLocalEventToCanvas(currentEventName);
                     }
                 }
             })
@@ -1582,16 +1572,17 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
             setCloudStatus('syncing', 'Syncing…');
             syncDebounceTimer = setTimeout(() => {
                 pushCurrentEventToSupabase();
-            }, 650);
+            }, 600);
         }
     }
 
     async function pushCurrentEventToSupabase() {
         if (!supabaseClient) return;
         try {
+            const cleanName = currentEventName.trim();
             const payload = {
-                id: currentEventName.toLowerCase().replace(/\s+/g, '_'),
-                event_name: currentEventName,
+                id: cleanName,
+                event_name: cleanName,
                 seat_data: seatData,
                 extra_seat_list: extraSeatList,
                 balcony_seat_list: balconySeatList,
@@ -2169,7 +2160,7 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
             currentEventName = Object.keys(eventsObj)[0];
         }
         updateEventsDropdown();
-        loadSelectedEvent(true);
+        applyLocalEventToCanvas(currentEventName);
     }
 
     function updateEventsDropdown() {
@@ -2184,6 +2175,25 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
             if (name === currentEventName) opt.selected = true;
             select.appendChild(opt);
         });
+    }
+
+    function applyLocalEventToCanvas(name) {
+        const eventsObj = getSavedEventsObj();
+        const evData = eventsObj[name];
+        if (!evData) return;
+
+        currentEventName = name;
+        seatData = evData.seatData || {};
+        extraSeatList = evData.extraSeatList || [];
+        balconySeatList = evData.balconySeatList || { L: [], R: [] };
+        walkwaySeatList = evData.walkwaySeatList || [];
+        historyStack = [];
+        updateUndoButton();
+
+        renderAllDynamicContainers();
+        renderAllSeats();
+        updateTotalSeatsCount();
+        updateDashboard();
     }
 
     function openSaveEventModal() {
@@ -2205,27 +2215,33 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
         showToast(currentLang === 'th' ? `บันทึกแผนผังงาน "${name}" เรียบร้อยแล้ว` : `Saved "${name}"`);
     }
 
-    function loadSelectedEvent(skipCloud = false) {
+    async function loadSelectedEvent() {
         const select = document.getElementById('saved-events-select');
         const name = select.value || currentEventName;
         if (!name) return;
 
-        const eventsObj = getSavedEventsObj();
-        const evData = eventsObj[name];
+        applyLocalEventToCanvas(name);
 
-        if (evData) {
-            currentEventName = name;
-            seatData = evData.seatData || {};
-            extraSeatList = evData.extraSeatList || [];
-            balconySeatList = evData.balconySeatList || { L: [], R: [] };
-            walkwaySeatList = evData.walkwaySeatList || [];
-            historyStack = [];
-            updateUndoButton();
+        if (supabaseClient) {
+            try {
+                const { data } = await supabaseClient
+                    .from('auditorium_events')
+                    .select('*')
+                    .eq('event_name', name)
+                    .maybeSingle();
 
-            renderAllDynamicContainers();
-            renderAllSeats();
-            updateTotalSeatsCount();
-            updateDashboard();
+                if (data) {
+                    const eventsObj = getSavedEventsObj();
+                    eventsObj[name] = {
+                        seatData: data.seat_data || {},
+                        extraSeatList: data.extra_seat_list || [],
+                        balconySeatList: data.balcony_seat_list || { L: [], R: [] },
+                        walkwaySeatList: data.walkway_seat_list || []
+                    };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(eventsObj));
+                    applyLocalEventToCanvas(name);
+                }
+            } catch (e) {}
         }
     }
 
@@ -2306,7 +2322,7 @@ alter publication supabase_realtime add table public.auditorium_events;</div>
 
             currentEventName = Object.keys(eventsObj)[0];
             updateEventsDropdown();
-            loadSelectedEvent(true);
+            applyLocalEventToCanvas(currentEventName);
             showToast(currentLang === 'th' ? `ลบผังงาน "${deletedName}" แล้ว` : `Deleted "${deletedName}"`);
         }
     }
